@@ -8,6 +8,7 @@
 [![Platform](https://img.shields.io/badge/Platform-CLI-lightgrey.svg)](#)
 
 A simple CLI-based task tracker built with [Typer](https://typer.tiangolo.com/) and [Rich](https://github.com/Textualize/rich) for managing to-do items in a JSON file.
+Inspired by 
 
 ## About the Project
 
@@ -137,7 +138,7 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more informa
 **Javier Hengda** – [javier.hwulin.devtech@gmail.com](mailto:javier.hwulin.devtech@gmail.com)  
 
 ## Acknowledgements
-
+- Project idea from [roadmap.sh](https://roadmap.sh/projects/task-tracker)
 - [Typer](https://typer.tiangolo.com/) for the awesome CLI framework.
 - [Rich](https://github.com/Textualize/rich) for making terminal output look fabulous.
 - The open-source community for fostering collaboration.
