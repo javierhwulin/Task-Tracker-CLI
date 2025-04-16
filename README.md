@@ -123,7 +123,7 @@ This will install Typer, Rich, and any other required dependencies.
 
 ## Roadmap
 
-- [ ] **Support for Due Dates**: Add the ability to assign due dates to tasks and filter them accordingly.
+- [x] **Support for Due Dates**: Add the ability to assign due dates to tasks and filter them accordingly.
 - [ ] **Recurring Tasks**: Automatically re-create tasks after a set interval (daily, weekly, monthly).
 - [ ] **Task Prioritization**: Allow labeling tasks with priorities (low, medium, high).
 - [ ] **Improved Output Formatting**: Potentially integrate more Rich formatting features (like tables) for better readability.
