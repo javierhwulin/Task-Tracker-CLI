@@ -19,6 +19,7 @@ class TaskStatus(str, Enum):
     TODO = "todo"
     IN_PROGRESS = "in-progress"
     DONE = "done"
+    OVERDUE = "overdue"
 
 
 @dataclass
@@ -30,6 +31,7 @@ class Task:
     status: TaskStatus
     createdAt: datetime
     updatedAt: datetime
+    due: datetime | None
 
 
 task_list: list[Task] = []
@@ -42,12 +44,14 @@ def task_to_dict(task: Task) -> dict:
     """
     Convert a Task object into a dictionary for JSON serialization.
     """
+    due_date = task.due.isoformat() if task.due is not None else None
     return {
         "id": task.id,
         "description": task.description,
         "status": task.status.value,
         "createdAt": task.createdAt.isoformat(),
         "updatedAt": task.updatedAt.isoformat(),
+        "due": due_date,
     }
 
 
@@ -55,12 +59,15 @@ def task_from_dict(data: dict) -> Task:
     """
     Convert a dictionary into a Task object.
     """
+    due_date = datetime.fromisoformat(data["due"]) if data["due"] is not None else None
+
     return Task(
         id=data["id"],
         description=data["description"],
         status=TaskStatus(data["status"]),
         createdAt=datetime.fromisoformat(data["createdAt"]),
         updatedAt=datetime.fromisoformat(data["updatedAt"]),
+        due=due_date,
     )
 
 
@@ -91,18 +98,32 @@ def load_tasks():
 
 
 @app.command("add")
-def add_task(description: str = typer.Argument(help="Task description")):
+def add_task(
+    description: str = typer.Argument(help="Task description"),
+    year: Annotated[int | None, typer.Option(help="Due year")] = None,
+    month: Annotated[int | None, typer.Option(help="Due month")] = None,
+    day: Annotated[int | None, typer.Option(help="Due day")] = None,
+    hour: Annotated[int, typer.Option(help="Due hour")] = 0,
+    minute: Annotated[int, typer.Option(help="Due minute")] = 0,
+    second: Annotated[int, typer.Option(help="Due second")] = 0,
+):
     """
     Add a task with a specified description.
     """
     load_tasks()
     global next_id
+
+    due_date = None
+    if year and month and day:
+        due_date = datetime(year, month, day, hour or 0, minute or 0, second or 0)
+
     task = Task(
         id=next_id,
         description=description,
         status=TaskStatus.TODO,
         createdAt=datetime.now(),
         updatedAt=datetime.now(),
+        due=due_date,
     )
     task_list.append(task)
     save_tasks()
@@ -186,6 +207,10 @@ def show(
     List tasks, optionally filtering by status.
     """
     load_tasks()
+    auto_update_overdue()
+    if len(task_list) == 0:
+        print("[cyan]No remaining tasks for today[/cyan]")
+        return
     if status == TaskStatus.ALL:
         list_all_tasks()
     elif status == TaskStatus.TODO:
@@ -194,6 +219,9 @@ def show(
         list_in_progress_tasks()
     elif status == TaskStatus.DONE:
         list_done_tasks()
+    elif status == TaskStatus.OVERDUE:
+        list_overdue_tasks()
+    save_tasks()
 
 
 # --- Task List Views ---
@@ -238,16 +266,67 @@ def list_done_tasks():
             print_task(task)
 
 
+def list_overdue_tasks():
+    """
+    Show only tasks with status "overdue".
+    """
+    print("[cyan]Overdue Tasks[/cyan]")
+    for task in task_list:
+        if task.status == TaskStatus.OVERDUE:
+            print_task(task)
+
+
 def print_task(task: Task):
     """
     Helper to print a task in a nice format.
     """
+    now = datetime.now()
+
+    if task.due is None:
+        due_str = "[dim]No due date[/dim]"
+    else:
+        delta = task.due - now
+        if delta.total_seconds() > 0:  # future due date
+            # If due date is more than 1 day away, show absolute day
+            if delta.total_seconds() >= 86400:
+                due_str = f"[italic]Due on {task.due:%Y-%m-%d %H:%M}[/italic]"
+            else:
+                seconds = int(delta.total_seconds())
+                if seconds >= 3600:
+                    time_str = f"{seconds // 3600} hour(s)"
+                elif seconds >= 60:
+                    time_str = f"{seconds // 60} minute(s)"
+                else:
+                    time_str = f"{seconds} seconds"
+                due_str = f"[italic]Due in {time_str}[/italic]"
+        else:  # overdue
+            seconds = int(abs(delta.total_seconds()))
+            if seconds >= 3600:
+                time_str = f"{seconds // 3600} hour(s)"
+            elif seconds >= 60:
+                time_str = f"{seconds // 60} minute(s)"
+            else:
+                time_str = f"{seconds} seconds"
+            due_str = f"[red]Overdue by {time_str}[/red]"
     print(
         f"[white]ID:[/white] {task.id} | "
         f"[bold]{task.description}[/bold] | "
         f"Status: [magenta]{task.status.value}[/magenta] | "
-        f"Created: {task.createdAt:%Y-%m-%d %H:%M}"
+        f"Created: {task.createdAt:%Y-%m-%d %H:%M} | "
+        f"Updated: {task.updatedAt:%Y-%m-%d %H:%M} | "
+        f"{due_str}"
     )
+
+
+def auto_update_overdue():
+    now = datetime.now()
+    for task in task_list:
+        if (
+            task.due is not None
+            and task.due < now
+            and task.status not in [TaskStatus.DONE, TaskStatus.OVERDUE]
+        ):
+            task.status = TaskStatus.OVERDUE
 
 
 if __name__ == "__main__":
